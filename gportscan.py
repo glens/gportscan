@@ -1,11 +1,11 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 import argparse
 import socket
 import sys
 import time
 
-title='Glens Simple Port Scanner'
+title='GPortScan (https://github.com/glens/GPortScan)'
 
 '''
 This is intended to be a limited drop in replacement for nmap using only python standard library imports.
@@ -30,14 +30,20 @@ def connection_scan(target_host, target_port, args):
             connection.settimeout(timeout)
             connection.connect((target_host, target_port))
 
-            print('%s \t %d/tcp \t [OPEN]' % (target_host, target_port))
+            banner = 'unknown'
+            if args.getbanners:
+                try:
+                    banner = str(connection.recv(1024))
+                except:
+                    pass
+                 
+            print('%s \t %d/tcp \t [OPEN]\t %s' % (target_host, target_port, banner))
 
             connection.close()
             return True
 
         except Exception, e:
             if not args.onlyshowopen:
-                # only print the closed port if onlyshowopen is set
                 print('%s \t %d/tcp \t [CLOSED]' % (target_host, target_port))
                 return False
 
@@ -51,7 +57,6 @@ def port_scan(target_host, target_ports, args):
     try:
         target_ip = socket.gethostbyname(target_host)
         print("Performing TCP CONNECT scan to %s port(s) on %s (%s) with %ss timeout" % (str(len(target_ports)), target_host, target_ip, str(args.timeout/1000.00)))
-        #print(args.timeout)
         host_start_time = time.time()
 
     except:
@@ -62,7 +67,6 @@ def port_scan(target_host, target_ports, args):
     socket.setdefaulttimeout(args.timeout/1000.00)
     open_port_count = 0
     for target_port in target_ports:
-        #print 'Scanning port ' + target_port
         if connection_scan(target_host, target_port, args):
             open_port_count += 1
 
@@ -84,6 +88,8 @@ if __name__ == '__main__':
         help='connection timeout in milliseconds - lower values can dramatically speed up scans.')
     parser.add_argument('--open', dest='onlyshowopen', action='store_true', default=False, \
         help='show only open ports')
+    parser.add_argument('--banners', dest='getbanners', action='store_true', default=False, \
+        help='try to retrieve service banners')
     parser.add_argument('--top-ports', dest='topports', type=int, \
         help='scan nmap top N ports (current max 1000). Overrides -p')    
 
@@ -99,10 +105,11 @@ if __name__ == '__main__':
         target_ports = args.ports
 
     except:
+        print(title + '\n')
         parser.print_usage
         sys.exit()
 
-    print(title + '\n')
+    
 
     if args.topports:
         target_ports = nmap_top1000[0:args.topports]
@@ -123,7 +130,7 @@ if __name__ == '__main__':
 
     # check for host input list
     scan_start_time = time.time()
-    print("Starting scan at %s\n" % time.ctime())
+    print("Starting %s at %s\n" % (title, time.ctime()))
 
     if args.inhostlist:
         with open(args.inhostlist,'r') as hostlistfile:
@@ -136,5 +143,3 @@ if __name__ == '__main__':
     scan_elapsed_time = "%.2f" % ((time.time() - scan_start_time))
     print("Scan completed at %s" % time.ctime())
     print("Total Scan Time: %s seconds" % scan_elapsed_time)
-
-
